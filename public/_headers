@@ -1,0 +1,4 @@
+/*
+  Access-Control-Allow-Origin: https://fengcblog.880200.xyz
+  Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+  Access-Control-Allow-Headers: *
