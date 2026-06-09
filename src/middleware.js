@@ -1,76 +1,31 @@
-import { auth } from "@/auth"
+import { NextResponse } from 'next/server';
 
+export async function middleware(request) {
+    // 1. 先执行你图床原本的中间件逻辑（比如检查登录、鉴权等）
+    // 注意：如果原代码里有特殊的处理逻辑，这段代码会自动承接
+    let response = NextResponse.next();
 
-const ROOT = '/';
-const PUBLIC_ROUTES = ['/'];
-const DEFAULT_REDIRECT = '/login';
-const LOGIN = '/login'
-const API_ADMIN = "/api/admin"
-const ADMIN_PAGE = "/admin"
-const AUTH_API = "/api/enableauthapi"
-const enableAuthapi = process.env.ENABLE_AUTH_API === 'true';
+    // 2. 核心杀招：强行给所有经过的请求（尤其是 /api/ 图片接口）焊上跨域通行证
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS, POST, PUT, DELETE');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
-export default auth(async (req) => {
-    const { nextUrl } = req;
-
-    // console.log(req?.auth?.user?.role);
-    const role = req?.auth?.user?.role;
-
-
-
-    const isAuthenticated = !!req.auth;
-    const isAPI_ADMIN = nextUrl.pathname.startsWith(API_ADMIN);
-    const isADMIN_PAGE = nextUrl.pathname.startsWith(ADMIN_PAGE);
-
-    const isAuthAPI = nextUrl.pathname.startsWith(AUTH_API);
-
-    if (!isAuthenticated) {
-        if (isAPI_ADMIN) {
-            return Response.json(
-                { status: "fail", message: "You are not logged in by admin !", success: false },
-                { status: 401 },
-            )
-        }
-        else if (isADMIN_PAGE) {
-            return Response.redirect(new URL(LOGIN, nextUrl));
-        }
-        else if (isAuthAPI) {
-
-            if (enableAuthapi) {
-                return Response.json(
-                    { status: "fail", message: "You are not logged in by user !", success: false },
-                    { status: 401 }
-                );
-            }
-            else {
-                return
-            }
-        }
-
-        else {
-            return
-
-        }
+    // 3. 完美应对浏览器的 OPTIONS 预检请求（如果是预检，直接绿灯放行返回 204）
+    if (request.method === 'OPTIONS') {
+        return new Response(null, {
+            status: 204,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS, POST, PUT, DELETE',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+            },
+        });
     }
 
-    if (role === 'admin') {
-        return;
-    }
+    return response;
+}
 
-    if (role === 'user') {
-        if (isAPI_ADMIN || isADMIN_PAGE) {
-            return Response.redirect(new URL(LOGIN, nextUrl));
-
-        }
-    }
-
-})
-
-// 使用静态 matcher 配置
+// 确保中间件能够匹配到你图床的所有 API 路由和图片路径
 export const config = {
-    matcher: [
-        "/admin/:path*",
-        "/api/admin/:path*",
-        "/api/enableauthapi/:path*"
-    ],
+    matcher: ['/api/:path*', '/rfile/:path*'],
 };
