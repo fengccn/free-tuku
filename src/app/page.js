@@ -9,16 +9,23 @@ import Footer from '@/components/Footer'
 import Link from "next/link";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
-// ===== 最简单的密码保护组件 =====
+// ===== 密码保护组件 - 只保护上传功能，不影响图片查看 =====
 function PasswordProtect({ children }) {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // 检查 localStorage
+  useEffect(() => {
+    if (localStorage.getItem('auth') === 'true') {
+      setIsAuthenticated(true);
+    }
+    setIsLoading(false);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // 从环境变量读取密码，注意 Next.js 客户端不能直接访问 process.env
-    // 所以我们需要通过 API 接口验证
     fetch('/api/verify-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -28,7 +35,6 @@ function PasswordProtect({ children }) {
     .then(data => {
       if (data.valid) {
         setIsAuthenticated(true);
-        // 保存登录状态到 localStorage
         localStorage.setItem('auth', 'true');
       } else {
         setError('密码错误，请重试');
@@ -38,19 +44,20 @@ function PasswordProtect({ children }) {
     .catch(() => setError('验证失败，请重试'));
   };
 
-  // 检查 localStorage 是否已认证
-  useEffect(() => {
-    if (localStorage.getItem('auth') === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl">加载中...</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <div className="bg-white p-8 rounded-lg shadow-md w-96">
           <h1 className="text-2xl font-bold text-center mb-6">🔒 图床</h1>
-          <p className="text-gray-500 text-center mb-6">请输入访问密码</p>
+          <p className="text-gray-500 text-center mb-6">请输入访问密码才能上传图片</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <input
@@ -73,6 +80,9 @@ function PasswordProtect({ children }) {
               进入
             </button>
           </form>
+          <p className="text-xs text-gray-400 text-center mt-4">
+            提示：已上传的图片链接可正常查看，无需密码
+          </p>
         </div>
       </div>
     );
@@ -429,7 +439,7 @@ export default function Home() {
 
   return (
     <PasswordProtect>
-      <main className=" overflow-auto h-full flex w-full min-h-screen flex-col items-center justify-between">
+      <main className="overflow-auto h-full flex w-full min-h-screen flex-col items-center justify-between">
         <header className="fixed top-0 h-[50px] left-0 w-full border-b bg-white flex z-50 justify-center items-center">
           <nav className="flex justify-between items-center w-full max-w-4xl px-4">
             <span>图床</span>
@@ -442,9 +452,11 @@ export default function Home() {
           </nav>
         </header>
         <div className="mt-[60px] w-9/10 sm:w-9/10 md:w-9/10 lg:w-9/10 xl:w-3/5 2xl:w-2/3">
+
           <div className="flex flex-row">
             <div className="flex flex-col">
-              <div className="text-gray-800 text-lg">图片或视频上传</div>
+              <div className="text-gray-800 text-lg">图片或视频上传
+              </div>
               <div className="mb-4 text-sm text-gray-500">
                 上传文件最大 5 MB;本站已托管 <span className="text-cyan-600">{Total}</span> 张图片; 你访问本站的IP是：<span className="text-cyan-600">{IP}</span>
               </div>
@@ -569,8 +581,8 @@ export default function Home() {
 
           <ToastContainer />
           <div className="w-full mt-4 min-h-[200px] mb-[60px]">
-            {uploadedImages.length > 0 && (
-              <>
+            {
+              uploadedImages.length > 0 && (<>
                 <div className="flex flex-wrap gap-3 mb-4 border-b border-gray-300">
                   <button
                     onClick={() => setActiveTab('preview')}
@@ -600,7 +612,8 @@ export default function Home() {
                 </div>
                 {renderTabContent()}
               </>
-            )}
+              )
+            }
           </div>
         </div>
         {selectedImage && (
